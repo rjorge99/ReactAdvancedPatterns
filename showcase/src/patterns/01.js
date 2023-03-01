@@ -1,3 +1,5 @@
+//NOTE: Clap haciendo uso de Higher Order Component.
+
 import React, { useState, useEffect, Component } from 'react';
 import mojs from 'mo-js';
 import styles from './index.css';
@@ -12,7 +14,8 @@ const initialState = {
  * Higher order component
  */
 const withClapAnimation = (WrappedComponent) => {
-    const [animationTimeline, setAnimationTimeline] = useState(new mojs.Timeline());
+    //NOTE: Se pasa una referencia de funcion, para que no se ejecute automaticamente al ejecutar withClapAnimation
+    const [animationTimeline, setAnimationTimeline] = useState(() => new mojs.Timeline());
 
     useEffect(() => {
         const tlDuration = 300;
