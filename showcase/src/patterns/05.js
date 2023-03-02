@@ -1,6 +1,4 @@
-//NOTE: Clap haciendo CompoundComponent
-//NOTE: Reusable Styles
-
+//NOTE: ControlPropsPattern
 import React, {
     useState,
     useLayoutEffect,
@@ -106,9 +104,15 @@ const useClapAnimation = ({ clapEl, countEl, totalEl }) => {
 // NOTE: Context object
 const MediumClapContext = createContext();
 const { Provider } = MediumClapContext;
+const MAXIMUM_USER_CLAP = 12;
 
-const MediumClap = ({ children, onClap, style: userStyles = {}, className = '' }) => {
-    const MAXIMUM_USER_CLAP = 12;
+const MediumClap = ({
+    children,
+    onClap,
+    values = null,
+    style: userStyles = {},
+    className = ''
+}) => {
     const [clapState, setClapState] = useState(initialState);
     const { count } = clapState;
 
@@ -128,33 +132,40 @@ const MediumClap = ({ children, onClap, style: userStyles = {}, className = '' }
 
     const componentJustMounted = useRef(true);
     useEffect(() => {
-        if (!componentJustMounted.current) onClap && onClap(clapState);
+        if (!componentJustMounted.current && !isControlled) onClap && onClap(clapState);
         componentJustMounted.current = false;
-    }, [count]);
+    }, [count, onClap, isControlled]);
 
+    //NOTE: Controlled component ?
+    const isControlled = !!values && !!onClap;
     const handleClapClick = () => {
         animationTimeline.play();
-        setClapState((prevState) => ({
-            isClicked: true,
-            count: Math.min(prevState.count + 1, MAXIMUM_USER_CLAP),
-            countTotal:
-                prevState.count < MAXIMUM_USER_CLAP
-                    ? prevState.countTotal + 1
-                    : prevState.countTotal
-        }));
+        isControlled
+            ? onClap()
+            : setClapState((prevState) => ({
+                  isClicked: true,
+                  count: Math.min(prevState.count + 1, MAXIMUM_USER_CLAP),
+                  countTotal:
+                      prevState.count < MAXIMUM_USER_CLAP
+                          ? prevState.countTotal + 1
+                          : prevState.countTotal
+              }));
     };
 
-    // TODO: Validar esta seccion.
+    const getState = useCallback(
+        () => (isControlled ? values : clapState),
+        [isControlled, values, clapState]
+    );
     const memoizedValue = useMemo(
         () => ({
-            ...clapState,
+            ...getState(),
             setRef
         }),
-        [clapState, setRef]
+        [getState, setRef]
     );
 
     return (
-        <Provider value={{ ...clapState, setRef }}>
+        <Provider value={memoizedValue}>
             <button
                 style={userStyles}
                 ref={setRef}
@@ -217,15 +228,26 @@ MediumClap.Icon = ClapIcon;
 MediumClap.Count = ClapCount;
 MediumClap.Total = CountTotal;
 
+const INITIAL_STATE = {
+    count: 0,
+    countTotal: 2100,
+    isClicked: false
+};
 const Usage = () => {
-    const [count, setCount] = useState(0);
-    const handleClap = (clapState) => {
-        setCount(clapState.count);
+    const [state, setState] = useState(INITIAL_STATE);
+    const handleClap = () => {
+        console.log('fired');
+        setState(({ count, countTotal }) => ({
+            count: Math.min(count + 1, MAXIMUM_USER_CLAP),
+            countTotal: count < MAXIMUM_USER_CLAP ? countTotal + 1 : countTotal,
+            isClicked: true
+        }));
     };
 
     return (
         <>
             <MediumClap
+                values={state}
                 onClap={handleClap}
                 style={{ border: '1px solid red' }}
                 className={userCustomStyles.clap}>
@@ -233,7 +255,15 @@ const Usage = () => {
                 <MediumClap.Count className={userCustomStyles.count} />
                 <MediumClap.Total className={userCustomStyles.total} />
             </MediumClap>
-            <div>{`You have clapped ${count}`}</div>
+            <MediumClap
+                values={state}
+                onClap={handleClap}
+                style={{ border: '1px solid red' }}
+                className={userCustomStyles.clap}>
+                <MediumClap.Icon className={userCustomStyles.icon} />
+                <MediumClap.Count className={userCustomStyles.count} />
+                <MediumClap.Total className={userCustomStyles.total} />
+            </MediumClap>
         </>
     );
 };
